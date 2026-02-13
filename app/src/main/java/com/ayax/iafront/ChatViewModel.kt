@@ -143,6 +143,7 @@ class ChatViewModel(
                 "Selecciona un modelo y vuelve a intentar."
             }
             val withAssistant = appendMessage(currentId, ChatMessage(ChatRole.Assistant, reply))
+            maybeGenerateTitle(currentId, userPrompt)
             publishCurrentConversation(currentId, withAssistant)
             persistHistory()
         }
@@ -176,14 +177,8 @@ class ChatViewModel(
 
         val conv = conversations[idx]
         val updatedMessages = conv.messages + message
-        val title = if (conv.messages.isEmpty() && message.role == ChatRole.User) {
-            message.content.trim().take(42).ifBlank { "Conversacion" }
-        } else {
-            conv.title
-        }
         val updatedConv = conv.copy(
             messages = updatedMessages,
-            title = title,
             updatedAt = System.currentTimeMillis()
         )
         conversations[idx] = updatedConv
@@ -192,12 +187,12 @@ class ChatViewModel(
     }
 
     private fun buildSummaries(): List<ConversationSummary> =
-        conversations.map { conv ->
-            val preview = conv.messages.lastOrNull()?.content?.take(60).orEmpty()
+        conversations
+            .filter { it.messages.isNotEmpty() }
+            .map { conv ->
             ConversationSummary(
                 id = conv.id,
                 title = conv.title,
-                preview = preview,
                 updatedAt = conv.updatedAt
             )
         }
@@ -212,6 +207,26 @@ class ChatViewModel(
 
     private suspend fun persistHistory() {
         historyStore.saveAll(conversations)
+    }
+
+    private suspend fun maybeGenerateTitle(conversationId: String, firstUserPrompt: String) {
+        val idx = conversations.indexOfFirst { it.id == conversationId }
+        if (idx < 0) return
+        val conv = conversations[idx]
+        if (conv.title != "Nueva conversacion") return
+
+        val generated = runCatching {
+            modelEngine.generateConversationTitle(firstUserPrompt)
+        }.getOrNull().orEmpty().trim()
+
+        val fallback = firstUserPrompt.trim().take(42).ifBlank { "Conversacion" }
+        val title = generated.ifBlank { fallback }
+
+        conversations[idx] = conv.copy(
+            title = title,
+            updatedAt = System.currentTimeMillis()
+        )
+        conversations.sortByDescending { it.updatedAt }
     }
 
     private fun normalizeBaseUrl(raw: String): String {

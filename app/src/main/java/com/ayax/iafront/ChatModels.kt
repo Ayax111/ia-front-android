@@ -13,7 +13,6 @@ data class ChatMessage(
 data class ConversationSummary(
     val id: String,
     val title: String,
-    val preview: String,
     val updatedAt: Long
 )
 

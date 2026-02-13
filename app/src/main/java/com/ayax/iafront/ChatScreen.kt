@@ -27,6 +27,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -49,7 +51,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import com.ayax.iafront.ui.MarkdownText
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -146,7 +152,6 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     onApplyServer = { viewModel.updateServerBaseUrl(serverInput) },
                     onSelectModel = { viewModel.selectModel(it) },
                     onReloadModels = { viewModel.initializeModel() },
-                    onNewConversation = { viewModel.startNewConversation() },
                     onOpenConversation = {
                         viewModel.openConversation(it)
                         scope.launch { drawerState.close() }
@@ -163,10 +168,16 @@ fun ChatScreen(viewModel: ChatViewModel) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("IA Front") },
-                    actions = {
-                        TextButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Text("Opciones")
+                    title = {
+                        Text(
+                            text = "IA Front",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Text("☰")
                         }
                     }
                 )
@@ -212,7 +223,6 @@ private fun OptionsPanel(
     onApplyServer: () -> Unit,
     onSelectModel: (String) -> Unit,
     onReloadModels: () -> Unit,
-    onNewConversation: () -> Unit,
     onOpenConversation: (String) -> Unit,
     onRenameConversation: (ConversationSummary) -> Unit,
     onDeleteConversation: (ConversationSummary) -> Unit
@@ -274,11 +284,10 @@ private fun OptionsPanel(
         HorizontalDivider()
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("Historial", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = onNewConversation) { Text("Nueva") }
         }
 
         LazyColumn(
@@ -306,31 +315,26 @@ private fun OptionsPanel(
 
                     is HistoryListItem.Entry -> {
                         val conv = item.conversation
-                        Column(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                            TextButton(
+                                onClick = { onOpenConversation(conv.id) },
+                                modifier = Modifier.weight(1f)
                             ) {
-                                TextButton(
-                                    onClick = { onOpenConversation(conv.id) },
-                                    modifier = Modifier.weight(1f)
-                                ) { Text(conv.title) }
-                                TextButton(onClick = { onRenameConversation(conv) }) {
-                                    Text("Renombrar")
-                                }
-                                TextButton(onClick = { onDeleteConversation(conv) }) {
-                                    Text("Eliminar")
-                                }
+                                Text(conv.title, maxLines = 1)
                             }
-                            if (conv.preview.isNotBlank()) {
-                                Text(
-                                    text = conv.preview,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                            IconButton(onClick = { onRenameConversation(conv) }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Edit,
+                                    contentDescription = "Renombrar"
+                                )
+                            }
+                            IconButton(onClick = { onDeleteConversation(conv) }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Eliminar"
                                 )
                             }
                         }
@@ -355,14 +359,13 @@ private fun ConversationPanel(
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Text(
-            text = if (uiState.isModelReady) {
-                "Modelo listo: ${uiState.selectedModel ?: "sin seleccionar"}"
-            } else {
-                "Modelo no inicializado"
-            },
-            color = if (uiState.isModelReady) Color(0xFF1B5E20) else Color(0xFFB71C1C)
-        )
+        val hasSelectedModel = uiState.isModelReady && !uiState.selectedModel.isNullOrBlank()
+        if (!hasSelectedModel) {
+            Text(
+                text = "No hay modelo seleccionado.",
+                color = Color(0xFFB71C1C)
+            )
+        }
         if (!uiState.statusMessage.isNullOrBlank()) {
             Spacer(Modifier.height(6.dp))
             Text(

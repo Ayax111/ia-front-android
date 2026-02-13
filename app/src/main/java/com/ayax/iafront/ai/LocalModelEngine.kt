@@ -7,5 +7,6 @@ interface LocalModelEngine {
     fun selectedModel(): String?
     fun setBaseUrl(baseUrl: String)
     fun getBaseUrl(): String
+    suspend fun generateConversationTitle(firstUserPrompt: String): String
     suspend fun generateReply(prompt: String): String
 }

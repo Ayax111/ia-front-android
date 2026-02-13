@@ -35,6 +35,11 @@ class FakeLocalModelEngine : LocalModelEngine {
 
     override fun getBaseUrl(): String = baseUrl
 
+    override suspend fun generateConversationTitle(firstUserPrompt: String): String {
+        delay(100)
+        return firstUserPrompt.trim().take(42).ifBlank { "Conversacion" }
+    }
+
     override suspend fun generateReply(prompt: String): String {
         delay(250)
         if (!initialized) return "Modelo no inicializado."

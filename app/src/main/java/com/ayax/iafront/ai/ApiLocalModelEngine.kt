@@ -51,6 +51,41 @@ class ApiLocalModelEngine(
 
     override fun getBaseUrl(): String = baseUrl
 
+    override suspend fun generateConversationTitle(firstUserPrompt: String): String = withContext(Dispatchers.IO) {
+        val model = currentModel ?: return@withContext firstUserPrompt.trim().take(42)
+        val payload = JSONObject()
+            .put("model", model)
+            .put("stream", false)
+            .put("messages", JSONArray()
+                .put(JSONObject()
+                    .put("role", "system")
+                    .put(
+                        "content",
+                        "Genera un titulo corto en espanol (maximo 6 palabras), sin comillas ni punto final."
+                    )
+                )
+                .put(JSONObject()
+                    .put("role", "user")
+                    .put("content", firstUserPrompt)
+                )
+            )
+
+        val response = request("POST", "/v1/chat/completions", payload.toString())
+        val json = JSONObject(response)
+        val choices = json.optJSONArray("choices") ?: JSONArray()
+        val first = choices.optJSONObject(0)
+        val content = first?.optJSONObject("message")?.optString("content").orEmpty()
+        content
+            .lineSequence()
+            .firstOrNull { it.isNotBlank() }
+            ?.trim()
+            ?.removePrefix("\"")
+            ?.removeSuffix("\"")
+            ?.removeSuffix(".")
+            ?.take(60)
+            .orEmpty()
+    }
+
     override suspend fun generateReply(prompt: String): String = withContext(Dispatchers.IO) {
         val model = currentModel ?: return@withContext "No hay modelo seleccionado."
         val payload = JSONObject()
